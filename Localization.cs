@@ -86,6 +86,30 @@ internal static class Localization
     };
 
     // Engine diagnostics remain in Chinese internally; translate them only at the UI boundary.
+    static readonly Dictionary<string,string> EnglishErrors=new Dictionary<string,string>(StringComparer.Ordinal)
+    {
+        {"请先启动一局游戏","Start a game first"},
+        {"仅支持游戏版本","Only game version "},
+        {"无法打开游戏进程","Unable to open the game process"},
+        {"当前不在有效的单人对局","The current game is not a valid single-player match"},
+        {"当前版本的动态根特征不唯一","The dynamic root signature is not unique for this game version"},
+        {"游戏速度字段未通过校验","The game speed field failed validation"},
+        {"无法定位游戏速度管理器","Unable to locate the game speed manager"},
+        {"无法定位游戏速度字段","Unable to locate the game speed field"},
+        {"游戏速度必须在","Game speed must be between"},
+        {"游戏速度写入后校验失败","Game speed verification failed after writing"},
+        {"健康值写入后校验失败","Health verification failed after writing"},
+        {"未找到可恢复的己方单位或建筑。","No allied units or buildings were found to restore health."},
+        {"未找到可修改的 AI 单位或建筑。","No AI units or buildings were found to change health."},
+        {"健康值写入失败：","Health update failed:"},
+        {"研发速度原值未通过校验","The original research speed failed validation"},
+        {"建造速度原值未通过校验","The original construction speed failed validation"},
+        {"读取游戏内存失败","Failed to read game memory"},
+        {"写入游戏内存失败","Failed to write game memory"},
+        {"对局已改变，无法恢复先前速度","The game has changed; the previous speed cannot be restored"},
+        {"对局已改变，无法继续修改速度","The game has changed; speed can no longer be modified"}
+    };
+
     static readonly Dictionary<string,string[]> Errors=new Dictionary<string,string[]>(StringComparer.Ordinal)
     {
         {"请先启动一局游戏",new[]{"Сначала запустите игру.","Inicia una partida primero.","先にゲームを開始してください。","ابدأ مباراة أولاً.","Lancez d'abord une partie.","Bitte zuerst ein Spiel starten.","먼저 게임을 시작하세요."}},
@@ -121,9 +145,46 @@ internal static class Localization
 
     internal static string Error(string detail,int language)
     {
+        if(language==2)
+        {
+            foreach(KeyValuePair<string,string> entry in EnglishErrors)
+            {
+                if(!detail.StartsWith(entry.Key,StringComparison.Ordinal))continue;
+                string suffix=detail.Substring(entry.Key.Length);
+                const string firstError="首个错误：";
+                int firstErrorIndex=suffix.IndexOf(firstError,StringComparison.Ordinal);
+                if(firstErrorIndex>=0)
+                {
+                    string nestedDetail=suffix.Substring(firstErrorIndex+firstError.Length);
+                    suffix=suffix.Substring(0,firstErrorIndex+firstError.Length)+Error(nestedDetail,language);
+                }
+                return TranslateEnglishError(entry.Value+suffix);
+            }
+            return detail;
+        }
+
         if(language<3||language>9)return detail;
         foreach(KeyValuePair<string,string[]> entry in Errors)
             if(detail.StartsWith(entry.Key,StringComparison.Ordinal))return entry.Value[language-3]+detail.Substring(entry.Key.Length);
         return detail;
+    }
+
+    static string TranslateEnglishError(string detail)
+    {
+        return detail
+            .Replace("（需要且只能有一个 AoE2DE_s 或 AoE2DE 进程）。"," (exactly one AoE2DE_s or AoE2DE process must be running).")
+            .Replace("。检测到：",". Detected: ")
+            .Replace("（命中 "," (matches ")
+            .Replace("）。",").")
+            .Replace(" 0.5–10 倍之间。"," 0.5x and 10x.")
+            .Replace("，未写入。",", no write was performed.")
+            .Replace("，未修改。",", no changes were made.")
+            .Replace("，已尝试恢复原值。",", an attempt was made to restore the original value.")
+            .Replace("扫描到的对象数："," Objects scanned: ")
+            .Replace("已成功修改 ","")
+            .Replace(" 个单位、"," units and ")
+            .Replace(" 栋建筑；"," buildings were successfully updated; ")
+            .Replace(" 个对象失败。首个错误："," objects failed. First error: ")
+            .Replace("。",".");
     }
 }

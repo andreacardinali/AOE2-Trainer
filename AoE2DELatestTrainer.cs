@@ -242,7 +242,8 @@ internal static class Engine
     static void SetObjectHealth(GameContext c,bool ai,float health,out int units,out int buildings)
     {
         units=buildings=0;int eligible=0,failed=0;string firstFailure=null;
-        List<GameObjectInfo> objects=ScanObjectsFast(c);
+        lock(CacheLock)if(c.Game.Id==cachedPid&&c.Player==cachedPlayer){cachedObjects.Clear();objectCacheTime=DateTime.MinValue;}
+        List<GameObjectInfo> objects=ScanObjects(c);
         foreach(GameObjectInfo o in objects)
         {
             if(ai?(o.PlayerId<1||o.PlayerId>8||o.Owner==c.Player||o.Health<=0):o.Owner!=c.Player)continue;
@@ -251,11 +252,18 @@ internal static class Engine
             {
                 ulong address=o.Address+0x130,raw=U64(c.Handle,address);
                 Write(c.Handle,address,BitConverter.GetBytes(EncodeHealth(raw,health)));
-                if(DecodeHealth(U64(c.Handle,address))!=health)throw new InvalidOperationException("健康值写入后校验失败。");
+                ulong verifiedRaw=U64(c.Handle,address);
+                if(DecodeHealth(verifiedRaw)!=health)throw new InvalidOperationException("健康值写入后校验失败。");
+                o.RawHealth=verifiedRaw;o.Health=DecodeHealth(verifiedRaw);
                 if(o.Unit)units++;else buildings++;
             }
             catch(System.ComponentModel.Win32Exception e){failed++;if(firstFailure==null)firstFailure=e.Message;}
             catch(InvalidOperationException e){failed++;if(firstFailure==null)firstFailure=e.Message;}
+        }
+        lock(CacheLock)if(c.Game.Id==cachedPid&&c.Player==cachedPlayer)
+        {
+            if(failed==0){cachedObjects=objects;objectCacheTime=DateTime.UtcNow;}
+            else{cachedObjects.Clear();objectCacheTime=DateTime.MinValue;}
         }
         if(eligible==0)throw new InvalidOperationException((ai?"未找到可修改的 AI 单位或建筑":"未找到可恢复的己方单位或建筑")+"。扫描到的对象数："+objects.Count+"。");
         if(failed>0)throw new InvalidOperationException("健康值写入失败：已成功修改 "+units+" 个单位、"+buildings+" 栋建筑；"+failed+" 个对象失败。首个错误："+firstFailure);
