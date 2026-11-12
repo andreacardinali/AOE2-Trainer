@@ -40,6 +40,10 @@ internal static class Localization
         {"Game speed set to ",new[]{"Скорость установлена: ","Velocidad ajustada a ","ゲーム速度を設定：","تم ضبط سرعة اللعبة على ","Vitesse réglée à ","Spieltempo gesetzt auf ","게임 속도 설정: "}},
         {"Gold",new[]{"Золото","Oro","金","الذهب","Or","Gold","금"}},
         {"Health restored",new[]{"Здоровье восстановлено","Salud restaurada","HPを回復しました","تمت استعادة الصحة","Santé restaurée","Gesundheit wiederhergestellt","체력 회복 완료"}},
+        {"Restored: ",new[]{"Восстановлено: ","Recuperadas: ","回復: ","تمت الاستعادة: ","Restaurés : ","Wiederhergestellt: ","회복됨: "}},
+        {"AI health set to 1 HP: ",new[]{"Здоровье ИИ установлено на 1: ","Salud de IA establecida en 1: ","AIのHPを1に設定: ","تم ضبط صحة الذكاء الاصطناعي على 1: ","Santé de l’IA réglée à 1 : ","KI-Lebenspunkte auf 1 gesetzt: ","AI 체력을 1로 설정: "}},
+        {" units, ",new[]{" юнитов, "," unidades, "," ユニット、"," وحدة، "," unités, "," Einheiten, "," 유닛, "}},
+        {" buildings",new[]{" зданий"," edificios"," 建物"," مبانٍ"," bâtiments"," Gebäude"," 건물"}},
         {"Hooked / Ready",new[]{"Подключено / готово","Conectado / listo","接続済み / 準備完了","متصل / جاهز","Connecté / prêt","Verbunden / bereit","연결됨 / 준비됨"}},
         {"Hotkeys",new[]{"Клавиши","Atajos","ホットキー","الاختصارات","Raccourcis","Hotkeys","단축키"}},
         {"Hotkeys: Ctrl+Shift+Home to toggle (currently: ",new[]{"Клавиши: Ctrl+Shift+Home (сейчас: ","Atajos: Ctrl+Shift+Home (ahora: ","ホットキー：Ctrl+Shift+Home（現在：","الاختصارات: Ctrl+Shift+Home (الآن: ","Raccourcis : Ctrl+Shift+Home (actuel : ","Hotkeys: Ctrl+Shift+Home (aktuell: ","단축키: Ctrl+Shift+Home (현재: "}},
@@ -94,6 +98,10 @@ internal static class Localization
         {"无法定位游戏速度字段",new[]{"Не найдено поле скорости.","No se encontró el campo de velocidad.","速度フィールドが見つかりません。","تعذر العثور على حقل السرعة.","Champ de vitesse introuvable.","Tempo-Feld nicht gefunden.","게임 속도 필드를 찾을 수 없습니다."}},
         {"游戏速度必须在",new[]{"Скорость должна быть в пределах 0,5–10×.","La velocidad debe estar entre 0,5 y 10×.","速度は0.5～10倍にしてください。","يجب أن تكون السرعة بين 0.5 و10×.","La vitesse doit être entre 0,5 et 10×.","Tempo muss zwischen 0,5 und 10× liegen.","게임 속도는 0.5~10배여야 합니다."}},
         {"游戏速度写入后校验失败",new[]{"Запись скорости не прошла проверку; исходное значение восстановлено.","Falló la verificación de velocidad; se intentó restaurar el valor original.","速度の書き込み検証に失敗し、元の値への復元を試みました。","فشل التحقق بعد ضبط السرعة؛ جرت محاولة استعادة القيمة الأصلية.","Validation après écriture échouée ; restauration tentée.","Tempo-Prüfung nach Schreiben fehlgeschlagen; Wiederherstellung versucht.","속도 변경 후 검증 실패; 원래 값 복원 시도."}},
+        {"健康値写入后校验失败",new[]{"Проверка записи здоровья не пройдена","Falló la verificación de salud","体力の書き込み検証に失敗しました","فشل التحقق من كتابة الصحة","Échec de la vérification de l’écriture de santé","Prüfung des Gesundheitswerts fehlgeschlagen","체력 기록 검증 실패"}},
+        {"未找到可恢复的己方单位或建筑。",new[]{"Не найдены свои юниты или здания для лечения.","No se encontraron unidades o edificios propios para curar.","回復対象の自軍ユニット・建物が見つかりません。","لم يتم العثور على وحدات أو مبانٍ صديقة لاستعادة صحتها.","Aucune unité ou bâtiment allié à soigner.","Keine eigenen Einheiten oder Gebäude zum Heilen gefunden.","회복할 아군 유닛이나 건물을 찾지 못했습니다."}},
+        {"未找到可修改的 AI 单位或建筑。",new[]{"Не найдены юниты или здания ИИ для изменения.","No se encontraron unidades o edificios de IA para modificar.","変更対象のAIユニット・建物が見つかりません。","لم يتم العثور على وحدات أو مبانٍ للذكاء الاصطناعي لتعديلها.","Aucune unité ou bâtiment IA à modifier.","Keine KI-Einheiten oder -Gebäude zum Ändern gefunden.","변경할 AI 유닛이나 건물을 찾지 못했습니다."}},
+        {"健康值写入失败：",new[]{"Запись здоровья не удалась: ","Falló la escritura de salud: ","体力の書き込みに失敗しました: ","فشلت كتابة الصحة: ","Échec de l’écriture de santé : ","Schreiben des Gesundheitswerts fehlgeschlagen: ","체력 기록 실패: "}},
         {"研发速度原值未通过校验",new[]{"Проверка исходной скорости исследования не пройдена; без изменений.","Falló la validación del valor de investigación; sin cambios.","研究速度の元の値を検証できず、変更しませんでした。","فشل التحقق من سرعة البحث الأصلية؛ لم تُجرَ تغييرات.","Vitesse de recherche initiale invalide ; aucune modification.","Ursprünglicher Forschungswert ungültig; nichts geändert.","연구 속도 원래 값 검증 실패; 변경하지 않았습니다."}},
         {"建造速度原值未通过校验",new[]{"Проверка исходной скорости строительства не пройдена; без изменений.","Falló la validación del valor de construcción; sin cambios.","建設速度の元の値を検証できず、変更しませんでした。","فشل التحقق من سرعة البناء الأصلية؛ لم تُجرَ تغييرات.","Vitesse de construction initiale invalide ; aucune modification.","Ursprünglicher Bauwert ungültig; nichts geändert.","건설 속도 원래 값 검증 실패; 변경하지 않았습니다."}},
         {"读取游戏内存失败",new[]{"Не удалось прочитать память игры.","No se pudo leer la memoria del juego.","ゲームメモリを読み取れません。","تعذرت قراءة ذاكرة اللعبة.","Lecture de la mémoire du jeu impossible.","Spiel-Speicher konnte nicht gelesen werden.","게임 메모리를 읽을 수 없습니다."}},
@@ -115,7 +123,7 @@ internal static class Localization
     {
         if(language<3||language>9)return detail;
         foreach(KeyValuePair<string,string[]> entry in Errors)
-            if(detail.StartsWith(entry.Key,StringComparison.Ordinal))return entry.Value[language-3];
+            if(detail.StartsWith(entry.Key,StringComparison.Ordinal))return entry.Value[language-3]+detail.Substring(entry.Key.Length);
         return detail;
     }
 }

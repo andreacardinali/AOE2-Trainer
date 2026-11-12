@@ -16,7 +16,7 @@ This Trainer is free to use!
 ### 下载和使用
 
 1. 从 [Releases](https://github.com/KagurazakaNatsuki/AOE2-Trainer/releases) 下载与游戏版本对应的 EXE，并核对该版本发布说明中的 SHA-256。
-2. 启动游戏，进入**单人战局**，再以管理员身份运行修改器。主菜单中只能检测进程，进入战局后才会显示“已连接 / 就绪”。
+2. 启动游戏，进入**单人战局**，再以管理员身份运行修改器。修改器优先检测 `AoE2DE_s.exe`，不可用时回退检测 `AoE2DE.exe`。主菜单中只能检测进程，进入战局后才会显示“已连接 / 就绪”。
 3. 木材、食物、黄金、石料分别输入数值并各自点击“应用”。其他功能也可用对应按钮或小键盘热键执行。
 4. “瞬间研发 / 建造 / 生产”是**一次性操作**，只处理当前任务或队列；下次使用需再点一次。
 5. 右上角的语言下拉菜单支持简体中文、繁體中文、English、Русский、Español、日本語、العربية、Français、Deutsch 和 한국어。启动时按系统界面语言自动选择；未适配的语言默认 English。
@@ -55,7 +55,7 @@ This trainer is for **single-player use only**. It modifies the running game's m
 ### Download and use
 
 1. Download the EXE matching your game version from [Releases](https://github.com/KagurazakaNatsuki/AOE2-Trainer/releases), and verify its SHA-256 against that release's notes.
-2. Start the game and enter a **single-player match**, then run the trainer as administrator. Process detection in the main menu is normal; the trainer becomes ready after entering a match.
+2. Start the game and enter a **single-player match**, then run the trainer as administrator. The trainer detects `AoE2DE_s.exe` first and falls back to `AoE2DE.exe` if it is unavailable. Process detection in the main menu is normal; the trainer becomes ready after entering a match.
 3. Enter and apply wood, food, gold, and stone amounts **separately**. Other features have individual buttons and numpad hotkeys.
 4. Instant research, building, and recruitment are **one-shot actions** on current tasks or queues. Click again for later tasks.
 5. The top-right dropdown supports Simplified Chinese, Traditional Chinese, English, Russian, Spanish, Japanese, Arabic, French, German, and Korean. The trainer selects the Windows UI language on startup; unsupported languages default to English.

@@ -65,10 +65,36 @@ internal static class Engine
     static List<ObjectMemoryRegion> cachedObjectRegions=new List<ObjectMemoryRegion>();
     static DateTime objectCacheTime=DateTime.MinValue;
 
+    internal static Process[] GetGameProcesses()
+    {
+        Process[] ps=Process.GetProcessesByName("AoE2DE_s");
+        return ps.Length>0?ps:Process.GetProcessesByName("AoE2DE");
+    }
+
+    static string GetGameVersion(Process p)
+    {
+        ProcessModule module=p.MainModule;
+        FileVersionInfo versionInfo=module.FileVersionInfo;
+        string version=String.IsNullOrWhiteSpace(versionInfo.FileVersion)?versionInfo.ProductVersion:versionInfo.FileVersion;
+        if(!String.IsNullOrWhiteSpace(version))return version;
+
+        string moduleDirectory=Path.GetDirectoryName(module.FileName);
+        if(!String.Equals(Path.GetFileName(moduleDirectory),"Game",StringComparison.OrdinalIgnoreCase))return null;
+        DirectoryInfo packageDirectory=Directory.GetParent(moduleDirectory);
+        const string packagePrefix="Microsoft.MSPhoenix_";
+        if(packageDirectory==null||!packageDirectory.Name.StartsWith(packagePrefix,StringComparison.OrdinalIgnoreCase))return null;
+        string packageIdentity=packageDirectory.Name.Substring(packagePrefix.Length);
+        int separator=packageIdentity.IndexOf('_');
+        Version packageVersion;
+        if(separator<=0||!Version.TryParse(packageIdentity.Substring(0,separator),out packageVersion)||packageVersion.Revision<0)return null;
+        return packageVersion.ToString(4);
+    }
+
     internal static GameContext Open(bool write)
     {
-        Process[] ps=Process.GetProcessesByName("AoE2DE_s"); if(ps.Length!=1)throw new InvalidOperationException("请先启动一局游戏（需要且只能有一个 AoE2DE_s 进程）。");
-        Process p=ps[0];if(p.MainModule.FileVersionInfo.FileVersion!="101.103.57257.0")throw new InvalidOperationException("仅支持游戏版本 101.103.57257.0。检测到："+p.MainModule.FileVersionInfo.FileVersion);
+        Process[] ps=GetGameProcesses(); if(ps.Length!=1)throw new InvalidOperationException("请先启动一局游戏（需要且只能有一个 AoE2DE_s 或 AoE2DE 进程）。");
+        Process p=ps[0];string version=GetGameVersion(p);
+        if(version!="101.103.57257.0")throw new InvalidOperationException("仅支持游戏版本 101.103.57257.0。检测到："+(String.IsNullOrWhiteSpace(version)?"(版本信息不可用)":version));
         uint access=Native.Q|Native.R|(write?Native.W|Native.O:0); IntPtr h=Native.OpenProcess(access,false,p.Id);
         if(h==IntPtr.Zero)throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(),"无法打开游戏进程");
         try
@@ -205,13 +231,34 @@ internal static class Engine
         List<GameObjectInfo> objects=ScanObjects(c);lock(CacheLock){cachedObjects=objects;objectCacheTime=DateTime.UtcNow;}return objects;
     }
 
-    internal static string RestoreHealth()
+    internal static void RestoreHealth(out int units,out int buildings)
     {
-        using(GameContext c=Open(true)){int u=0,b=0;foreach(GameObjectInfo o in ScanObjectsFast(c)){if(o.Owner!=c.Player)continue;try{ulong raw=U64(c.Handle,o.Address+0x130);Write(c.Handle,o.Address+0x130,BitConverter.GetBytes(EncodeHealth(raw,9999f)));if(o.Unit)u++;else b++;}catch{}}return string.Format("已恢复：{0} 个单位、{1} 栋建筑",u,b);}
+        using(GameContext c=Open(true))SetObjectHealth(c,false,9999f,out units,out buildings);
     }
-    internal static string EmptyAiHealth()
+    internal static void EmptyAiHealth(out int units,out int buildings)
     {
-        using(GameContext c=Open(true)){int u=0,b=0;foreach(GameObjectInfo o in ScanObjectsFast(c)){if(o.PlayerId<1||o.PlayerId>8||o.Owner==c.Player||o.Health<=0)continue;try{ulong raw=U64(c.Handle,o.Address+0x130);Write(c.Handle,o.Address+0x130,BitConverter.GetBytes(EncodeHealth(raw,1f)));if(o.Unit)u++;else b++;}catch{}}return string.Format("AI 已设为 1 血：{0} 个单位、{1} 栋建筑",u,b);}
+        using(GameContext c=Open(true))SetObjectHealth(c,true,1f,out units,out buildings);
+    }
+    static void SetObjectHealth(GameContext c,bool ai,float health,out int units,out int buildings)
+    {
+        units=buildings=0;int eligible=0,failed=0;string firstFailure=null;
+        List<GameObjectInfo> objects=ScanObjectsFast(c);
+        foreach(GameObjectInfo o in objects)
+        {
+            if(ai?(o.PlayerId<1||o.PlayerId>8||o.Owner==c.Player||o.Health<=0):o.Owner!=c.Player)continue;
+            eligible++;
+            try
+            {
+                ulong address=o.Address+0x130,raw=U64(c.Handle,address);
+                Write(c.Handle,address,BitConverter.GetBytes(EncodeHealth(raw,health)));
+                if(DecodeHealth(U64(c.Handle,address))!=health)throw new InvalidOperationException("健康值写入后校验失败。");
+                if(o.Unit)units++;else buildings++;
+            }
+            catch(System.ComponentModel.Win32Exception e){failed++;if(firstFailure==null)firstFailure=e.Message;}
+            catch(InvalidOperationException e){failed++;if(firstFailure==null)firstFailure=e.Message;}
+        }
+        if(eligible==0)throw new InvalidOperationException((ai?"未找到可修改的 AI 单位或建筑":"未找到可恢复的己方单位或建筑")+"。扫描到的对象数："+objects.Count+"。");
+        if(failed>0)throw new InvalidOperationException("健康值写入失败：已成功修改 "+units+" 个单位、"+buildings+" 栋建筑；"+failed+" 个对象失败。首个错误："+firstFailure);
     }
     internal static int FinishQueues(GameContext c,List<ulong> buildings,uint expectedKind,ulong elapsedOffset,float completionElapsed,out int active)
     {
@@ -486,7 +533,7 @@ internal sealed class TrainerForm : Form
     readonly TextBox speedEditor=new TextBox();
     readonly NumericUpDown wood=ResourceBox(),food=ResourceBox(),gold=ResourceBox(),stone=ResourceBox(),speed=SpeedBox();
     readonly System.Windows.Forms.Timer detector=new System.Windows.Forms.Timer();
-    int hookedPid,detectedPid,language,speedPid;bool hookBusy,hotkeysEnabled=true,speedOverrideActive;ulong speedPlayer;float savedSpeed;
+    int hookedPid,detectedPid,language,speedPid;bool hookBusy,hotkeysEnabled=true,speedOverrideActive;ulong speedPlayer;float savedSpeed;string detectedProcessName="";
     Func<string> statusMessage;DateTime statusTime;bool statusError;
     DateTime nextCacheRefresh=DateTime.MinValue,nextAttachAttempt=DateTime.MinValue;
     enum UpdateCheckState{Checking,Current,Outdated,Unpublished,Unavailable}
@@ -757,11 +804,21 @@ internal sealed class TrainerForm : Form
         Run(()=>T("设置","設定","Set ")+name(),delegate{Engine.SetResource(id,value);},
             ()=>name()+T("已设为 ","已設為 "," set to ")+value.ToString("0.##",CultureInfo.InvariantCulture));
     }
-    void RestoreHealthAction(){Run(()=>T("恢复生命值","恢復生命值","Restore Health"),delegate{Engine.RestoreHealth();},()=>T("生命值恢复完成","生命值恢復完成","Health restored"));}
+    void RestoreHealthAction()
+    {
+        int units=0,buildings=0;
+        Run(()=>T("恢复生命值","恢復生命值","Restore Health"),delegate{Engine.RestoreHealth(out units,out buildings);},
+            ()=>T("已恢复：","已恢復：","Restored: ")+units+T(" 个单位、"," 個單位、"," units, ")+buildings+T(" 栋建筑"," 棟建築"," buildings"));
+    }
     void InstantResearchAction(){Run(()=>T("瞬间研发","瞬間研發","Instant Research"),delegate{Engine.InstantResearchOnce();},()=>T("当前研发队列已完成","當前研發佇列已完成","Current research queue completed"));}
     void InstantBuildingsAction(){Run(()=>T("瞬间建造","瞬間建造","Instant Buildings"),delegate{Engine.InstantBuildingsOnce();},()=>T("当前建造任务已完成","當前建造任務已完成","Current construction completed"));}
     void InstantRecruitAction(){Run(()=>T("瞬间生产单位","瞬間生產單位","Instant Recruit Units"),delegate{Engine.InstantRecruitOnce();},()=>T("当前生产队列已完成","當前生產佇列已完成","Current production queue completed"));}
-    void EmptyAiHealthAction(){Run(()=>T("清空 AI 生命值","清空 AI 生命值","Empty AI Health"),delegate{Engine.EmptyAiHealth();},()=>T("AI 单位与建筑已设为 1 血","AI 單位與建築已設為 1 血","AI units and buildings set to 1 HP"));}
+    void EmptyAiHealthAction()
+    {
+        int units=0,buildings=0;
+        Run(()=>T("清空 AI 生命值","清空 AI 生命值","Empty AI Health"),delegate{Engine.EmptyAiHealth(out units,out buildings);},
+            ()=>T("AI 生命值已设为 1：","AI 生命值已設為 1：","AI health set to 1 HP: ")+units+T(" 个单位、"," 個單位、"," units, ")+buildings+T(" 栋建筑"," 棟建築"," buildings"));
+    }
     void MaxPopulationAction(){Run(()=>T("最大人口","最大人口","Max Population"),delegate{Engine.SetResource(4,200);},()=>T("人口上限已设为 200","人口上限已設為 200","Population cap set to 200"));}
     void ZeroPopulationAction(){Run(()=>T("人口归零","人口歸零","Zero Population"),delegate{Engine.SetResource(11,0);},()=>T("当前人口已设为 0","當前人口已設為 0","Current population set to 0"));}
     void Run(Func<string> name,Action work,Func<string> success)
@@ -787,15 +844,15 @@ internal sealed class TrainerForm : Form
     void PlayDisableFeedback(){if(soundToggle.IsOn)AudioFeedback.Disable();}
     void DetectGame()
     {
-        Process[] ps=Process.GetProcessesByName("AoE2DE_s");
+        Process[] ps=Engine.GetGameProcesses();
         if(ps.Length!=1)
         {
             bool wasDetected=detectedPid!=0;
-            hookedPid=detectedPid=0;speedOverrideActive=false;UpdateSpeedToggle();UpdateProcessInfo();
+            hookedPid=detectedPid=0;detectedProcessName="";speedOverrideActive=false;UpdateSpeedToggle();UpdateProcessInfo();
             if(wasDetected)SetStatus(()=>T("等待游戏进程……","等待遊戲進程……","Waiting for game process..."));
             return;
         }
-        int pid=ps[0].Id;detectedPid=pid;
+        int pid=ps[0].Id;detectedPid=pid;detectedProcessName=ps[0].ProcessName+".exe";
         if(DateTime.UtcNow<nextAttachAttempt||hookedPid==pid&&DateTime.UtcNow<nextCacheRefresh){UpdateProcessInfo();return;}
         if(hookBusy)return;hookBusy=true;UpdateProcessInfo();
         Task.Run(delegate
@@ -832,7 +889,8 @@ internal sealed class TrainerForm : Form
     {
         bool waitingForMatch=detectedPid!=0&&hookedPid!=detectedPid;
         string state=detectedPid==0?T("等待游戏","等待遊戲","Waiting for game"):(waitingForMatch?T("已检测 / 等待进入战局","已偵測 / 等待進入戰局","Detected / waiting for match"):T("已连接 / 就绪","已連接 / 就緒","Hooked / Ready"));
-        processInfo.Text=T("游戏进程名称：","遊戲程序名稱：","Game Process Name:")+"\r\nAoE2DE_s.exe\r\n\r\n"+T("进程 ID：","程序 ID：","Process ID: ")+(detectedPid==0?"--":detectedPid.ToString())+"\r\n"+T("状态：","狀態：","Status: ")+state;
+        string processName=detectedPid==0?"AoE2DE_s.exe / AoE2DE.exe":detectedProcessName;
+        processInfo.Text=T("游戏进程名称：","遊戲程序名稱：","Game Process Name:")+"\r\n"+processName+"\r\n\r\n"+T("进程 ID：","程序 ID：","Process ID: ")+(detectedPid==0?"--":detectedPid.ToString())+"\r\n"+T("状态：","狀態：","Status: ")+state;
         processInfo.Height=waitingForMatch?129:108;
         int soundY=processInfo.Bottom+4;
         soundLabel.Location=new Point(4,soundY);
