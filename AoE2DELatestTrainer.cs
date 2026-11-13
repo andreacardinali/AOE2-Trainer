@@ -48,6 +48,11 @@ internal sealed class ObjectMemoryRegion
     internal ulong Base,Size;
 }
 
+internal sealed class ScanDiagnostics
+{
+    internal ulong CommittedRegions,BytesRead,FailedReads,PartialReads,VtableMatches;
+}
+
 internal static class Engine
 {
     const ulong K1=0x6AE24D3352F04511UL,K2=0xC22D6B496D833977UL,K3=0x042AC42976FCCEF5UL,K4=0xA9834B738A7DD167UL;
@@ -181,27 +186,38 @@ internal static class Engine
 
     internal static List<GameObjectInfo> ScanObjects(GameContext c)
     {
+        return ScanObjects(c,null);
+    }
+
+    static List<GameObjectInfo> ScanObjects(GameContext c,ScanDiagnostics diagnostics)
+    {
         ulong unit=c.ModuleBase+UnitVtableRva,building=c.ModuleBase+BuildingVtableRva; var result=new List<GameObjectInfo>();var objectRegions=new List<ObjectMemoryRegion>();ulong cursor=0x10000; int mbiSize=Marshal.SizeOf(typeof(Native.MBI));
         while(cursor<0x00007FFFFFFF0000UL)
         {
             Native.MBI m; if(Native.VirtualQueryEx(c.Handle,new IntPtr((long)cursor),out m,new UIntPtr((uint)mbiSize))==UIntPtr.Zero)break; ulong rb=(ulong)m.BaseAddress.ToInt64(),rs=m.RegionSize.ToUInt64(),next=rb+rs;if(next<=cursor)break;
             if(m.State==Native.MEM_COMMIT&&(m.Protect&(Native.PAGE_GUARD|Native.PAGE_NOACCESS))==0)
-            {int before=result.Count;ScanRegion(c,rb,rs,unit,building,result);if(result.Count>before)objectRegions.Add(new ObjectMemoryRegion{Base=rb,Size=rs});}
+            {if(diagnostics!=null)diagnostics.CommittedRegions++;int before=result.Count;ScanRegion(c,rb,rs,unit,building,result,diagnostics);if(result.Count>before)objectRegions.Add(new ObjectMemoryRegion{Base=rb,Size=rs});}
             cursor=next;
         }
         lock(CacheLock)cachedObjectRegions=objectRegions;
         return result;
     }
 
-    static void ScanRegion(GameContext c,ulong rb,ulong rs,ulong unit,ulong building,List<GameObjectInfo> result)
+    static void ScanRegion(GameContext c,ulong rb,ulong rs,ulong unit,ulong building,List<GameObjectInfo> result,ScanDiagnostics diagnostics)
     {
         for(ulong done=0;done<rs;)
         {
             int want=(int)Math.Min((ulong)Chunk,rs-done);byte[] buf=new byte[want];UIntPtr got;
-            if(Native.ReadProcessMemory(c.Handle,new IntPtr((long)(rb+done)),buf,new UIntPtr((uint)want),out got)&&got.ToUInt64()>=8)
-            for(int i=0;i<=(int)got.ToUInt64()-8;i+=8)
+            bool complete=Native.ReadProcessMemory(c.Handle,new IntPtr((long)(rb+done)),buf,new UIntPtr((uint)want),out got);ulong bytesRead=Math.Min(got.ToUInt64(),(ulong)want);
+            if(diagnostics!=null)
             {
-                ulong vt=BitConverter.ToUInt64(buf,i);if(vt!=unit&&vt!=building)continue;ulong obj=rb+done+(ulong)i,owner,raw;if(!TryU64(c.Handle,obj+0x18,out owner)||owner<0x10000||!TryU64(c.Handle,obj+0x130,out raw))continue;int pid;if(!TryI32(c.Handle,owner+0x648,out pid))continue;float hp=DecodeHealth(raw);if(float.IsNaN(hp)||float.IsInfinity(hp)||hp<0||hp>100000)continue;
+                diagnostics.BytesRead+=bytesRead;
+                if(!complete){diagnostics.FailedReads++;if(bytesRead>0)diagnostics.PartialReads++;}
+            }
+            if(bytesRead>=8)
+            for(int i=0;i<=(int)bytesRead-8;i+=8)
+            {
+                ulong vt=BitConverter.ToUInt64(buf,i);if(vt!=unit&&vt!=building)continue;if(diagnostics!=null)diagnostics.VtableMatches++;ulong obj=rb+done+(ulong)i,owner,raw;if(!TryU64(c.Handle,obj+0x18,out owner)||owner<0x10000||!TryU64(c.Handle,obj+0x130,out raw))continue;int pid;if(!TryI32(c.Handle,owner+0x648,out pid))continue;float hp=DecodeHealth(raw);if(float.IsNaN(hp)||float.IsInfinity(hp)||hp<0||hp>100000)continue;
                 result.Add(new GameObjectInfo{Address=obj,Owner=owner,RawHealth=raw,PlayerId=pid,Unit=vt==unit,Health=hp});
             }
             done+=(ulong)want;
@@ -211,7 +227,7 @@ internal static class Engine
     static List<GameObjectInfo> ScanObjectsFast(GameContext c)
     {
         List<ObjectMemoryRegion> regions;lock(CacheLock)regions=new List<ObjectMemoryRegion>(cachedObjectRegions);if(regions.Count==0)return ScanObjects(c);
-        ulong unit=c.ModuleBase+UnitVtableRva,building=c.ModuleBase+BuildingVtableRva;var result=new List<GameObjectInfo>();foreach(ObjectMemoryRegion r in regions)ScanRegion(c,r.Base,r.Size,unit,building,result);
+        ulong unit=c.ModuleBase+UnitVtableRva,building=c.ModuleBase+BuildingVtableRva;var result=new List<GameObjectInfo>();foreach(ObjectMemoryRegion r in regions)ScanRegion(c,r.Base,r.Size,unit,building,result,null);
         lock(CacheLock){cachedObjects=result;objectCacheTime=DateTime.UtcNow;}return result;
     }
 
@@ -243,7 +259,7 @@ internal static class Engine
     {
         units=buildings=0;int eligible=0,failed=0;string firstFailure=null;
         lock(CacheLock)if(c.Game.Id==cachedPid&&c.Player==cachedPlayer){cachedObjects.Clear();objectCacheTime=DateTime.MinValue;}
-        List<GameObjectInfo> objects=ScanObjects(c);
+        var diagnostics=new ScanDiagnostics();List<GameObjectInfo> objects=ScanObjects(c,diagnostics);
         foreach(GameObjectInfo o in objects)
         {
             if(ai?(o.PlayerId<1||o.PlayerId>8||o.Owner==c.Player||o.Health<=0):o.Owner!=c.Player)continue;
@@ -265,7 +281,7 @@ internal static class Engine
             if(failed==0){cachedObjects=objects;objectCacheTime=DateTime.UtcNow;}
             else{cachedObjects.Clear();objectCacheTime=DateTime.MinValue;}
         }
-        if(eligible==0)throw new InvalidOperationException((ai?"未找到可修改的 AI 单位或建筑":"未找到可恢复的己方单位或建筑")+"。扫描到的对象数："+objects.Count+"。");
+        if(eligible==0)throw new InvalidOperationException((ai?"未找到可修改的 AI 单位或建筑":"未找到可恢复的己方单位或建筑")+"。扫描到的对象数："+objects.Count+"。扫描诊断：提交区域 "+diagnostics.CommittedRegions+"，读取字节 "+diagnostics.BytesRead+"，不完整读取 "+diagnostics.FailedReads+"，部分读取 "+diagnostics.PartialReads+"，vtable 命中 "+diagnostics.VtableMatches+"。");
         if(failed>0)throw new InvalidOperationException("健康值写入失败：已成功修改 "+units+" 个单位、"+buildings+" 栋建筑；"+failed+" 个对象失败。首个错误："+firstFailure);
     }
     internal static int FinishQueues(GameContext c,List<ulong> buildings,uint expectedKind,ulong elapsedOffset,float completionElapsed,out int active)
