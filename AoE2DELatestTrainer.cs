@@ -534,7 +534,8 @@ internal static class UpdateChecker
 internal sealed class TrainerForm : Form
 {
     readonly Color Dark=Color.FromArgb(30,32,34),PanelColor=Color.FromArgb(35,37,39),Orange=Color.FromArgb(255,140,0);
-    readonly Label processInfo=new Label(),status=new Label(),hotkeyHint=new Label(),soundLabel=new Label(),updateStatus=new Label();
+    readonly Label processInfo=new Label(),hotkeyHint=new Label(),soundLabel=new Label(),updateStatus=new Label();
+    readonly LinkLabel status=new LinkLabel();
     readonly SpeedToggleSwitch soundToggle=new SpeedToggleSwitch{IsOn=true,Size=new Size(36,18)};
     readonly Image coverImage;
     readonly SpeedToggleSwitch speedToggle=new SpeedToggleSwitch();
@@ -559,6 +560,10 @@ internal sealed class TrainerForm : Form
         updateStatus.Click+=delegate{CheckForUpdates();};
         speedEditor.Leave+=delegate{CommitSpeedEditor();};
         speedEditor.KeyDown+=delegate(object sender,KeyEventArgs e){if(e.KeyCode==Keys.Enter){CommitSpeedEditor();e.Handled=true;e.SuppressKeyPress=true;}else if(e.KeyCode==Keys.Escape){speedEditor.Text=FormatSpeed();e.Handled=true;e.SuppressKeyPress=true;}};
+        status.LinkClicked+=delegate
+        {
+            if(statusError)MessageBox.Show(this,statusMessage(),T("错误详情","錯誤詳細資訊","Error details"),MessageBoxButtons.OK,MessageBoxIcon.Error);
+        };
         BuildUi();detector.Interval=1000;detector.Tick+=delegate{DetectGame();AdvanceUpdateFlash();};Shown+=delegate{RegisterKeys();detector.Start();DetectGame();CheckForUpdates();};
     }
 
@@ -630,6 +635,7 @@ internal sealed class TrainerForm : Form
         hotkeyHint.Location=new Point(0,493);hotkeyHint.Size=new Size(542,20);hotkeyHint.TextAlign=ContentAlignment.MiddleCenter;hotkeyHint.ForeColor=Color.Silver;
         hotkeyHint.RightToLeft=language==6?RightToLeft.Yes:RightToLeft.No;right.Controls.Add(hotkeyHint);
         status.Location=new Point(0,520);status.Size=new Size(542,54);status.BorderStyle=BorderStyle.FixedSingle;status.Padding=new Padding(8);status.ForeColor=Color.Silver;
+        status.AutoEllipsis=true;status.LinkBehavior=LinkBehavior.NeverUnderline;
         status.RightToLeft=language==6?RightToLeft.Yes:RightToLeft.No;right.Controls.Add(status);
         UpdateProcessInfo();UpdateSpeedToggle();UpdateHotkeyHint();
         if(statusMessage==null)SetStatus(()=>T("等待游戏进程……","等待遊戲進程……","Waiting for game process..."));else RenderStatus();
@@ -845,8 +851,13 @@ internal sealed class TrainerForm : Form
     void RenderStatus()
     {
         if(statusMessage==null)return;
-        status.Text=statusTime.ToString("HH:mm:ss")+"  "+statusMessage();
+        string prefix=statusTime.ToString("HH:mm:ss")+"  ";
+        status.Text=prefix+statusMessage();
         status.ForeColor=statusError?Color.Salmon:Color.LightGreen;
+        status.LinkColor=status.ForeColor;
+        status.VisitedLinkColor=status.ForeColor;
+        status.LinkArea=statusError?new LinkArea(prefix.Length,status.Text.Length-prefix.Length):new LinkArea(0,0);
+        status.AccessibleName=status.Text;
     }
     void PlaySuccessFeedback(){if(soundToggle.IsOn)AudioFeedback.Success();}
     void PlayDisableFeedback(){if(soundToggle.IsOn)AudioFeedback.Disable();}

@@ -46,6 +46,8 @@ This Trainer is free to use!
 
 如需反馈，请在 Issue 中提供游戏 Build、修改器版本、复现步骤和错误现象；不要上传个人信息、存档或含敏感数据的日志。
 
+状态栏中的错误可点击查看完整信息，也可通过键盘 Tab 聚焦并按 Enter 打开。
+
 ## Introduce
 
 > **Unofficial project:** This independently written trainer takes inspiration from FLiNG's UI style and workflow. It is **not** an official FLiNG release and is not affiliated with, endorsed by, or sponsored by FLiNG, Microsoft, or World's Edge.
@@ -83,3 +85,5 @@ This trainer is for **single-player use only**. It modifies the running game's m
 - The EXE is unsigned. Do not disable antivirus or system protections to run it.
 - Features have been manually checked in a single-player match.
 For bug reports, open an Issue with the game build, trainer version, reproduction steps, and symptoms. Do not post personal data, save files, or sensitive logs.
+
+Click an error in the status area (or focus it with Tab and press Enter) to view the full message.

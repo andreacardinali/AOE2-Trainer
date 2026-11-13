@@ -28,6 +28,7 @@ internal static class Localization
         {"Enable game speed override",new[]{"Включить изменение скорости","Activar velocidad personalizada","速度変更をオン","تشغيل تعديل سرعة اللعبة","Activer la vitesse modifiée","Spieltempo-Änderung einschalten","게임 속도 변경 켜기"}},
         {"Enter a valid game speed",new[]{"Укажите допустимую скорость","Introduce una velocidad válida","有効なゲーム速度を入力","أدخل سرعة لعبة صالحة","Saisissez une vitesse valide","Gültiges Spieltempo eingeben","올바른 게임 속도를 입력하세요"}},
         {"Error: ",new[]{"Ошибка: ","Error: ","エラー：","خطأ: ","Erreur : ","Fehler: ","오류: "}},
+        {"Error details",new[]{"Подробности ошибки","Detalles del error","エラーの詳細","تفاصيل الخطأ","Détails de l’erreur","Fehlerdetails","오류 세부 정보"}},
         {"Feature hotkeys disabled",new[]{"Горячие клавиши отключены","Atajos desactivados","機能ホットキーを無効化","تم إيقاف الاختصارات","Raccourcis désactivés","Funktions-Hotkeys deaktiviert","기능 단축키 꺼짐"}},
         {"Feature hotkeys enabled",new[]{"Горячие клавиши включены","Atajos activados","機能ホットキーを有効化","تم تشغيل الاختصارات","Raccourcis activés","Funktions-Hotkeys aktiviert","기능 단축키 켜짐"}},
         {"Food",new[]{"Еда","Comida","食料","الطعام","Nourriture","Nahrung","식량"}},
