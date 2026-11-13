@@ -6,6 +6,7 @@ internal static class Localization
 {
     static readonly Dictionary<string,string[]> Text=new Dictionary<string,string[]>(StringComparer.Ordinal)
     {
+        {"Activity log",new[]{"Журнал действий","Registro de actividad","アクティビティログ","سجل النشاط","Journal d’activité","Aktivitätsprotokoll","활동 로그"}},
         {" processing...",new[]{" — обработка..."," en curso...","を処理中..."," جارٍ التنفيذ..."," en cours..."," wird verarbeitet..."," 처리 중..."}},
         {" set to ",new[]{" установлено: "," establecido en ","："," ضُبط على "," défini à "," gesetzt auf "," 설정: "}},
         {")",new[]{")",")","）",")",")",")",")"}},
@@ -14,6 +15,7 @@ internal static class Localization
         {"APPLY",new[]{"OK","APLICAR","適用","تطبيق","OK","OK","적용"}},
         {"Cannot open project page: ",new[]{"Не открыть страницу проекта: ","No se puede abrir la página: ","プロジェクトページを開けません：","تعذر فتح صفحة المشروع: ","Impossible d'ouvrir la page : ","Projektseite kann nicht geöffnet werden: ","프로젝트 페이지를 열 수 없음: "}},
         {"Checking for updates...",new[]{"Проверка обновлений...","Buscando actualizaciones...","更新を確認中...","جارٍ التحقق من التحديث...","Recherche de mises à jour...","Suche nach Updates...","업데이트 확인 중..."}},
+        {"Copy",new[]{"Копировать","Copiar","コピー","نسخ","Copier","Kopieren","복사"}},
         {"Current construction completed",new[]{"Текущее строительство завершено","Construcción actual completada","現在の建設が完了","اكتمل البناء الحالي","Construction en cours terminée","Aktueller Bau abgeschlossen","현재 건설 완료"}},
         {"Current population set to 0",new[]{"Текущее население: 0","Población actual: 0","現在人口を0に設定","عدد السكان الحالي: 0","Population actuelle : 0","Aktuelle Bevölkerung: 0","현재 인구 0으로 설정"}},
         {"Current production queue completed",new[]{"Очередь производства завершена","Cola de producción completada","現在の生産キューが完了","اكتمل طابور الإنتاج الحالي","File de production terminée","Produktionswarteschlange abgeschlossen","현재 생산 대기열 완료"}},
@@ -29,6 +31,7 @@ internal static class Localization
         {"Enter a valid game speed",new[]{"Укажите допустимую скорость","Introduce una velocidad válida","有効なゲーム速度を入力","أدخل سرعة لعبة صالحة","Saisissez une vitesse valide","Gültiges Spieltempo eingeben","올바른 게임 속도를 입력하세요"}},
         {"Error: ",new[]{"Ошибка: ","Error: ","エラー：","خطأ: ","Erreur : ","Fehler: ","오류: "}},
         {"Error details",new[]{"Подробности ошибки","Detalles del error","エラーの詳細","تفاصيل الخطأ","Détails de l’erreur","Fehlerdetails","오류 세부 정보"}},
+        {"Export",new[]{"Экспорт","Exportar","エクスポート","تصدير","Exporter","Exportieren","내보내기"}},
         {"Feature hotkeys disabled",new[]{"Горячие клавиши отключены","Atajos desactivados","機能ホットキーを無効化","تم إيقاف الاختصارات","Raccourcis désactivés","Funktions-Hotkeys deaktiviert","기능 단축키 꺼짐"}},
         {"Feature hotkeys enabled",new[]{"Горячие клавиши включены","Atajos activados","機能ホットキーを有効化","تم تشغيل الاختصارات","Raccourcis activés","Funktions-Hotkeys aktiviert","기능 단축키 켜짐"}},
         {"Food",new[]{"Еда","Comida","食料","الطعام","Nourriture","Nahrung","식량"}},
@@ -56,6 +59,8 @@ internal static class Localization
         {"Instant Research (Once)",new[]{"Мгновенное исследование (раз)","Investigar al instante (una vez)","即時研究（1回）","بحث فوري (مرة واحدة)","Recherche instantanée (1 fois)","Sofortige Forschung (einmal)","즉시 연구 (1회)"}},
         {"Language:",new[]{"Язык:","Idioma:","言語：","اللغة:","Langue :","Sprache:","언어:"}},
         {"Local test build not released",new[]{"Локальная сборка не выпущена","Versión local sin publicar","ローカル版は未公開","نسخة الاختبار المحلية لم تُنشر","Version locale non publiée","Lokale Testversion unveröffentlicht","로컬 테스트 버전 미출시"}},
+        {"Log copied to clipboard",new[]{"Журнал скопирован в буфер обмена","Registro copiado al portapapeles","ログをクリップボードにコピーしました","تم نسخ السجل إلى الحافظة","Journal copié dans le presse-papiers","Protokoll in die Zwischenablage kopiert","로그를 클립보드에 복사했습니다"}},
+        {"Log exported",new[]{"Журнал экспортирован","Registro exportado","ログをエクスポートしました","تم تصدير السجل","Journal exporté","Protokoll exportiert","로그를 내보냈습니다"}},
         {"Max Population",new[]{"Лимит населения","Población máxima","最大人口","الحد الأقصى للسكان","Population maximale","Max. Bevölkerung","최대 인구"}},
         {"Max Population Cap: 200",new[]{"Предел населения: 200","Límite de población: 200","最大人口上限：200","الحد الأقصى للسكان: 200","Population max. : 200","Bevölkerungsgrenze: 200","최대 인구 제한: 200"}},
         {"off",new[]{"выкл.","desactivado","オフ","متوقف","désactivés","aus","꺼짐"}},
@@ -80,6 +85,9 @@ internal static class Localization
         {"Trainer is up to date",new[]{"Трейнер обновлён","Trainer actualizado","最新版です","أداة التعديل محدّثة","Trainer à jour","Trainer ist aktuell","최신 버전입니다"}},
         {"Trainer update required",new[]{"Требуется обновление","Actualización necesaria","更新が必要です","يلزم تحديث الأداة","Mise à jour requise","Update erforderlich","업데이트가 필요합니다"}},
         {"Update check unavailable",new[]{"Проверка недоступна","No se pudo comprobar","更新を確認できません","تعذّر التحقق من التحديث","Vérification indisponible","Prüfung nicht verfügbar","업데이트 확인 불가"}},
+        {"Text files (*.txt)|*.txt|All files (*.*)|*.*",new[]{"Текстовые файлы (*.txt)|*.txt|Все файлы (*.*)|*.*","Archivos de texto (*.txt)|*.txt|Todos los archivos (*.*)|*.*","テキスト ファイル (*.txt)|*.txt|すべてのファイル (*.*)|*.*","ملفات نصية (*.txt)|*.txt|كل الملفات (*.*)|*.*","Fichiers texte (*.txt)|*.txt|Tous les fichiers (*.*)|*.*","Textdateien (*.txt)|*.txt|Alle Dateien (*.*)|*.*","텍스트 파일 (*.txt)|*.txt|모든 파일 (*.*)|*.*"}},
+        {"Unable to copy log: ",new[]{"Не удалось скопировать журнал: ","No se pudo copiar el registro: ","ログをコピーできません：","تعذر نسخ السجل: ","Impossible de copier le journal : ","Protokoll kann nicht kopiert werden: ","로그를 복사할 수 없습니다: "}},
+        {"Unable to export log: ",new[]{"Не удалось экспортировать журнал: ","No se pudo exportar el registro: ","ログをエクスポートできません：","تعذر تصدير السجل: ","Impossible d’exporter le journal : ","Protokoll kann nicht exportiert werden: ","로그를 내보낼 수 없습니다: "}},
         {"Waiting for game",new[]{"Ожидание игры","Esperando juego","ゲーム待機中","انتظار اللعبة","En attente du jeu","Warte auf Spiel","게임 대기 중"}},
         {"Waiting for game process...",new[]{"Ожидание процесса игры...","Esperando el proceso del juego...","ゲームプロセスを待機中...","بانتظار عملية اللعبة...","En attente du processus du jeu...","Warte auf Spielprozess...","게임 프로세스 대기 중..."}},
         {"Wood",new[]{"Дерево","Madera","木材","الخشب","Bois","Holz","목재"}},

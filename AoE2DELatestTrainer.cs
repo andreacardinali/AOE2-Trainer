@@ -580,7 +580,9 @@ internal sealed class TrainerForm : Form
 {
     readonly Color Dark=Color.FromArgb(30,32,34),PanelColor=Color.FromArgb(35,37,39),Orange=Color.FromArgb(255,140,0);
     readonly Label processInfo=new Label(),hotkeyHint=new Label(),soundLabel=new Label(),updateStatus=new Label();
-    readonly LinkLabel status=new LinkLabel();
+    readonly TextBox statusLog=new TextBox();
+    readonly Button copyLogButton=new Button(),exportLogButton=new Button();
+    readonly List<string> statusEntries=new List<string>();
     readonly SpeedToggleSwitch soundToggle=new SpeedToggleSwitch{IsOn=true,Size=new Size(36,18)};
     readonly Image coverImage;
     readonly SpeedToggleSwitch speedToggle=new SpeedToggleSwitch();
@@ -588,7 +590,6 @@ internal sealed class TrainerForm : Form
     readonly NumericUpDown wood=ResourceBox(),food=ResourceBox(),gold=ResourceBox(),stone=ResourceBox(),speed=SpeedBox();
     readonly System.Windows.Forms.Timer detector=new System.Windows.Forms.Timer();
     int hookedPid,detectedPid,language,speedPid;bool hookBusy,hotkeysEnabled=true,speedOverrideActive;ulong speedPlayer;float savedSpeed;string detectedProcessName="";
-    Func<string> statusMessage;DateTime statusTime;bool statusError;
     DateTime nextCacheRefresh=DateTime.MinValue,nextAttachAttempt=DateTime.MinValue;
     enum UpdateCheckState{Checking,Current,Outdated,Unpublished,Unavailable}
     UpdateCheckState updateCheckState=UpdateCheckState.Checking;bool updateCheckBusy,updateFlashOrange=true;
@@ -603,12 +604,10 @@ internal sealed class TrainerForm : Form
         speedToggle.Click+=delegate{ToggleSpeed();};speed.ValueChanged+=delegate{speedEditor.Text=FormatSpeed();UpdateActiveSpeed();};
         soundToggle.Click+=delegate{soundToggle.IsOn=!soundToggle.IsOn;};
         updateStatus.Click+=delegate{CheckForUpdates();};
+        copyLogButton.Click+=delegate{CopyStatusLog();};
+        exportLogButton.Click+=delegate{ExportStatusLog();};
         speedEditor.Leave+=delegate{CommitSpeedEditor();};
         speedEditor.KeyDown+=delegate(object sender,KeyEventArgs e){if(e.KeyCode==Keys.Enter){CommitSpeedEditor();e.Handled=true;e.SuppressKeyPress=true;}else if(e.KeyCode==Keys.Escape){speedEditor.Text=FormatSpeed();e.Handled=true;e.SuppressKeyPress=true;}};
-        status.LinkClicked+=delegate
-        {
-            if(statusError)MessageBox.Show(this,statusMessage(),T("错误详情","錯誤詳細資訊","Error details"),MessageBoxButtons.OK,MessageBoxIcon.Error);
-        };
         BuildUi();detector.Interval=1000;detector.Tick+=delegate{DetectGame();AdvanceUpdateFlash();};Shown+=delegate{RegisterKeys();detector.Start();DetectGame();CheckForUpdates();};
     }
 
@@ -633,7 +632,7 @@ internal sealed class TrainerForm : Form
     void BuildUi()
     {
         SuspendLayout();
-        foreach(Control reused in new Control[]{processInfo,status,hotkeyHint,soundLabel,soundToggle,updateStatus,speedToggle,speedEditor,wood,food,gold,stone,speed})
+        foreach(Control reused in new Control[]{processInfo,statusLog,copyLogButton,exportLogButton,hotkeyHint,soundLabel,soundToggle,updateStatus,speedToggle,speedEditor,wood,food,gold,stone,speed})
             if(reused.Parent!=null)reused.Parent.Controls.Remove(reused);
         while(Controls.Count>0){Control old=Controls[0];Controls.RemoveAt(0);old.Dispose();}
         var header=new Panel{Dock=DockStyle.Top,Height=70,BackColor=Color.FromArgb(28,30,31)};Controls.Add(header);
@@ -679,11 +678,19 @@ internal sealed class TrainerForm : Form
         AddRow(right,ref y,"Num -",T("当前人口设为 0（无限人口）","當前人口設為 0（無限人口）","Set Population To 0 (Infinite Population)"),null,ZeroPopulationAction);
         hotkeyHint.Location=new Point(0,493);hotkeyHint.Size=new Size(542,20);hotkeyHint.TextAlign=ContentAlignment.MiddleCenter;hotkeyHint.ForeColor=Color.Silver;
         hotkeyHint.RightToLeft=language==6?RightToLeft.Yes:RightToLeft.No;right.Controls.Add(hotkeyHint);
-        status.Location=new Point(0,520);status.Size=new Size(542,54);status.BorderStyle=BorderStyle.FixedSingle;status.Padding=new Padding(8);status.ForeColor=Color.Silver;
-        status.AutoEllipsis=true;status.LinkBehavior=LinkBehavior.NeverUnderline;
-        status.RightToLeft=language==6?RightToLeft.Yes:RightToLeft.No;right.Controls.Add(status);
+        copyLogButton.Text=T("复制","複製","Copy");copyLogButton.Location=new Point(385,514);copyLogButton.Size=new Size(70,24);
+        exportLogButton.Text=T("导出","匯出","Export");exportLogButton.Location=new Point(461,514);exportLogButton.Size=new Size(81,24);
+        foreach(Button button in new[]{copyLogButton,exportLogButton})
+        {
+            button.FlatStyle=FlatStyle.Flat;button.BackColor=PanelColor;button.ForeColor=Color.Gainsboro;button.FlatAppearance.BorderColor=Color.Gray;
+            button.Font=new Font(Font.FontFamily,8.5f);right.Controls.Add(button);
+        }
+        statusLog.Location=new Point(0,541);statusLog.Size=new Size(542,54);statusLog.BorderStyle=BorderStyle.FixedSingle;
+        statusLog.Multiline=true;statusLog.ReadOnly=true;statusLog.ScrollBars=ScrollBars.Vertical;statusLog.WordWrap=true;
+        statusLog.BackColor=PanelColor;statusLog.ForeColor=Color.Gainsboro;statusLog.Font=new Font(Font.FontFamily,8.5f);
+        statusLog.RightToLeft=language==6?RightToLeft.Yes:RightToLeft.No;right.Controls.Add(statusLog);
         UpdateProcessInfo();UpdateSpeedToggle();UpdateHotkeyHint();
-        if(statusMessage==null)SetStatus(()=>T("等待游戏进程……","等待遊戲進程……","Waiting for game process..."));else RenderStatus();
+        if(statusEntries.Count==0)SetStatus(()=>T("等待游戏进程……","等待遊戲進程……","Waiting for game process..."));else RenderStatus();
         ResumeLayout(true);
     }
 
@@ -891,18 +898,52 @@ internal sealed class TrainerForm : Form
     }
     void SetStatus(Func<string> message,bool error=false)
     {
-        statusMessage=message;statusTime=DateTime.Now;statusError=error;RenderStatus();
+        statusEntries.Add(DateTime.Now.ToString("HH:mm:ss",CultureInfo.InvariantCulture)+(error?"  [ERROR]  ":"  ")+message());
+        if(statusEntries.Count>200)statusEntries.RemoveAt(0);
+        RenderStatus();
     }
     void RenderStatus()
     {
-        if(statusMessage==null)return;
-        string prefix=statusTime.ToString("HH:mm:ss")+"  ";
-        status.Text=prefix+statusMessage();
-        status.ForeColor=statusError?Color.Salmon:Color.LightGreen;
-        status.LinkColor=status.ForeColor;
-        status.VisitedLinkColor=status.ForeColor;
-        status.LinkArea=statusError?new LinkArea(prefix.Length,status.Text.Length-prefix.Length):new LinkArea(0,0);
-        status.AccessibleName=status.Text;
+        statusLog.Text=string.Join(Environment.NewLine,statusEntries.ToArray());
+        statusLog.SelectionStart=statusLog.TextLength;
+        statusLog.ScrollToCaret();
+        statusLog.AccessibleName=T("活动日志","活動記錄","Activity log");
+    }
+    void CopyStatusLog()
+    {
+        try
+        {
+            Clipboard.SetText(statusLog.Text);
+            SetStatus(()=>T("日志已复制到剪贴板","記錄已複製到剪貼簿","Log copied to clipboard"));
+        }
+        catch(Exception e)
+        {
+            string detail=e.Message;
+            SetStatus(()=>T("无法复制日志：","無法複製記錄：","Unable to copy log: ")+detail,true);
+        }
+    }
+    void ExportStatusLog()
+    {
+        using(var dialog=new SaveFileDialog
+        {
+            FileName="AoE2-Trainer-log-"+DateTime.Now.ToString("yyyyMMdd-HHmmss",CultureInfo.InvariantCulture)+".txt",
+            Filter=T("文本文件 (*.txt)|*.txt|所有文件 (*.*)|*.*","文字檔案 (*.txt)|*.txt|所有檔案 (*.*)|*.*","Text files (*.txt)|*.txt|All files (*.*)|*.*"),
+            DefaultExt="txt",
+            AddExtension=true
+        })
+        {
+            if(dialog.ShowDialog(this)!=DialogResult.OK)return;
+            try
+            {
+                File.WriteAllText(dialog.FileName,statusLog.Text,new System.Text.UTF8Encoding(false));
+                SetStatus(()=>T("日志已导出","記錄已匯出","Log exported"));
+            }
+            catch(Exception e)
+            {
+                string detail=e.Message;
+                SetStatus(()=>T("无法导出日志：","無法匯出記錄：","Unable to export log: ")+detail,true);
+            }
+        }
     }
     void PlaySuccessFeedback(){if(soundToggle.IsOn)AudioFeedback.Success();}
     void PlayDisableFeedback(){if(soundToggle.IsOn)AudioFeedback.Disable();}
