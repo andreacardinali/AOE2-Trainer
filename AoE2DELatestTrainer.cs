@@ -57,7 +57,7 @@ internal static class Engine
 {
     const ulong K1=0x6AE24D3352F04511UL,K2=0xC22D6B496D833977UL,K3=0x042AC42976FCCEF5UL,K4=0xA9834B738A7DD167UL;
     const ulong HX=0x32F9EB34FC733DBDUL,HS=0x4A707D51D10B218EUL;
-    internal const ulong UnitVtableRva=0x32B71C0UL,BuildingVtableRva=0x32B4FA8UL,RecruitActionVtableRva=0x3227700UL,ResearchActionVtableRva=0x32279A8UL;
+    internal const ulong UnitVtableRva=0x30B92D0UL,BuildingVtableRva=0x30B70B8UL,RecruitActionVtableRva=0x3227700UL,ResearchActionVtableRva=0x32279A8UL;
     const ulong SpeedManagerOffset=0x8UL,SpeedSettingsOffset=0x228UL,SpeedValuesOffset=0xCUL;
     const ulong BuildingQueueOffset=0x8A8UL,QueueFirstNodeOffset=0x10UL,RecruitElapsedOffset=0x6CUL,ResearchIdOffset=0x68UL,ResearchElapsedOffset=0x70UL;
     const uint RecruitActionKind=0x66,ResearchActionKind=0x67;
@@ -247,6 +247,24 @@ internal static class Engine
         List<GameObjectInfo> objects=ScanObjects(c);lock(CacheLock){cachedObjects=objects;objectCacheTime=DateTime.UtcNow;}return objects;
     }
 
+    static List<GameObjectInfo> ValidateCachedObjects(GameContext c,List<GameObjectInfo> cached)
+    {
+        ulong unit=c.ModuleBase+UnitVtableRva,building=c.ModuleBase+BuildingVtableRva;var result=new List<GameObjectInfo>(cached.Count);
+        foreach(GameObjectInfo o in cached)
+        {
+            ulong vtable,owner,raw;int playerId;
+            if(!TryU64(c.Handle,o.Address,out vtable)||vtable!=(o.Unit?unit:building)||
+               !TryU64(c.Handle,o.Address+0x18,out owner)||owner<0x10000||
+               !TryU64(c.Handle,o.Address+0x130,out raw)||!TryI32(c.Handle,owner+0x648,out playerId))continue;
+            float health=DecodeHealth(raw);if(float.IsNaN(health)||float.IsInfinity(health)||health<0||health>100000)continue;
+            result.Add(new GameObjectInfo{Address=o.Address,Owner=owner,RawHealth=raw,PlayerId=playerId,Unit=vtable==unit,Health=health});
+        }
+        return result;
+    }
+
+    static bool IsEligibleHealthTarget(GameObjectInfo o,GameContext c,bool ai)
+    {return ai?(o.PlayerId>=1&&o.PlayerId<=8&&o.Owner!=c.Player&&o.Health>0):o.Owner==c.Player;}
+
     internal static void RestoreHealth(out int units,out int buildings)
     {
         using(GameContext c=Open(true))SetObjectHealth(c,false,9999f,out units,out buildings);
@@ -258,12 +276,23 @@ internal static class Engine
     static void SetObjectHealth(GameContext c,bool ai,float health,out int units,out int buildings)
     {
         units=buildings=0;int eligible=0,failed=0;string firstFailure=null;
-        lock(CacheLock)if(c.Game.Id==cachedPid&&c.Player==cachedPlayer){cachedObjects.Clear();objectCacheTime=DateTime.MinValue;}
-        var diagnostics=new ScanDiagnostics();List<GameObjectInfo> objects=ScanObjects(c,diagnostics);
+        List<GameObjectInfo> objects=null;bool usingCachedObjects=false;
+        lock(CacheLock)
+        {
+            if(c.Game.Id==cachedPid&&c.ModuleBase==cachedModule&&c.Player==cachedPlayer&&cachedObjects.Count>0&&DateTime.UtcNow-objectCacheTime<TimeSpan.FromSeconds(90))
+            {objects=new List<GameObjectInfo>(cachedObjects);usingCachedObjects=true;}
+        }
+        if(usingCachedObjects)objects=ValidateCachedObjects(c,objects);
+        foreach(GameObjectInfo o in objects??new List<GameObjectInfo>())if(IsEligibleHealthTarget(o,c,ai))eligible++;
+        var diagnostics=new ScanDiagnostics();
+        if(eligible==0)
+        {
+            objects=ScanObjects(c,diagnostics);usingCachedObjects=false;eligible=0;
+            foreach(GameObjectInfo o in objects)if(IsEligibleHealthTarget(o,c,ai))eligible++;
+        }
         foreach(GameObjectInfo o in objects)
         {
-            if(ai?(o.PlayerId<1||o.PlayerId>8||o.Owner==c.Player||o.Health<=0):o.Owner!=c.Player)continue;
-            eligible++;
+            if(!IsEligibleHealthTarget(o,c,ai))continue;
             try
             {
                 ulong address=o.Address+0x130,raw=U64(c.Handle,address);
@@ -278,7 +307,7 @@ internal static class Engine
         }
         lock(CacheLock)if(c.Game.Id==cachedPid&&c.Player==cachedPlayer)
         {
-            if(failed==0){cachedObjects=objects;objectCacheTime=DateTime.UtcNow;}
+            if(failed==0){cachedObjects=objects;if(!usingCachedObjects)objectCacheTime=DateTime.UtcNow;}
             else{cachedObjects.Clear();objectCacheTime=DateTime.MinValue;}
         }
         if(eligible==0)throw new InvalidOperationException((ai?"未找到可修改的 AI 单位或建筑":"未找到可恢复的己方单位或建筑")+"。扫描到的对象数："+objects.Count+"。扫描诊断：提交区域 "+diagnostics.CommittedRegions+"，读取字节 "+diagnostics.BytesRead+"，不完整读取 "+diagnostics.FailedReads+"，部分读取 "+diagnostics.PartialReads+"，vtable 命中 "+diagnostics.VtableMatches+"。");
